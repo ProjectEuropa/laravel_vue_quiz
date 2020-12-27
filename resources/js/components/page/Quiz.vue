@@ -103,6 +103,11 @@
       </div>
     </main>
     <the-footer></the-footer>
+
+    <the-modal
+      :correctPercentageObject="state.correctPercentageObject"
+      ref="modal"
+    ></the-modal>
   </div>
 </template>
 
@@ -110,7 +115,7 @@
 import TheFooter from "../layout/TheFooter";
 import TheHeader from "../layout/TheHeader";
 import TheSidebar from "../layout/TheSidebar";
-
+import TheModal from "../module/TheModal";
 import { reactive, onMounted } from "@vue/composition-api";
 
 export default {
@@ -118,6 +123,7 @@ export default {
     TheFooter,
     TheHeader,
     TheSidebar,
+    TheModal,
   },
 
   setup(props, context) {
@@ -135,6 +141,7 @@ export default {
       score: 0,
       quizNumber: 1,
       categoryName: "",
+      correctPercentageObject: {},
     });
 
     onMounted(() => {
@@ -149,6 +156,29 @@ export default {
         });
     });
 
+    const goAnswer = (selectAnswerNum) => {
+      if (selectAnswerNum === 0) {
+        // selectAnswerNumが0の場合は、click 「正解を表示する」ボタンのクリック alert-info、alert-dangerを非表示
+        state.isCorrect = false;
+        state.isMistake = false;
+      } else if (selectAnswerNum === Number(state.correctAnswerNo)) {
+        // 正解を押した場合 alert-infoを表示し、alert-dangerを非表示にする そしてスコアを加算する
+        state.isCorrect = true;
+        state.isMistake = false;
+        state.score += 1;
+      } else {
+        // 不正解の場合 alert-infoを非表示し、alert-dangerを表示にする
+        state.isMistake = true;
+        state.isCorrect = false;
+      }
+      // 回答済みの設定をONにする 同じ問題に２回以上の回答をさせないため、そして解説を表示するため
+      state.isAlreadyAnswered = true;
+
+      // 10問以上回答している場合は、クイズを終了
+      if (state.quizNumber >= 10) {
+        endQuiz();
+      }
+    };
 
     const findNextQuiz = (quizNumber) => {
       state.title = state.quizData[quizNumber].title;
@@ -164,9 +194,42 @@ export default {
       state.categoryName = state.quizData[quizNumber].category.name;
     };
 
+    const goNextQuiz = () => {
+      // 次の問題へをクリック
+      if (state.quizNumber >= 10) {
+        // 10問以上の場合はクイズを終了
+        endQuiz();
+      } else {
+        // 次のクイズを表示し、クイズ番号を加算、alert-info、alert-danger、解説を非表示にする
+        findNextQuiz(state.quizNumber);
+        state.quizNumber += 1;
+        state.isCorrect = false;
+        state.isMistake = false;
+        state.isAlreadyAnswered = false;
+      }
+    };
+    const endQuiz = () => {
+      state.isQuizFinish = true;
+      state.answerNo = "-";
+      state.isAlreadyAnswered = true;
+
+      state.correctPercentageObject = {
+        correctScore: state.score,
+        mistakeScore: 10 - state.score,
+      };
+    };
+
+    const showResult = () => {
+      context.refs.modal.render();
+    };
+
     return {
       state,
-      findNextQuiz
+      findNextQuiz,
+      goAnswer,
+      goNextQuiz,
+      endQuiz,
+      showResult,
     };
   },
 };
